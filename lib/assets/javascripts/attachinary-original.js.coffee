@@ -1,4 +1,5 @@
 (($) ->
+
   $.attachinary =
     index: 0
     config:
@@ -24,26 +25,22 @@
       render: (files) ->
         $.attachinary.Templating.template(@template, files: files)
 
+
   $.fn.attachinary = (options) ->
     settings = $.extend {}, $.attachinary.config, options
 
     this.each ->
       $this = $(this)
+
       if !$this.data('attachinary-bond')
         $this.data 'attachinary-bond', new $.attachinary.Attachinary($this, settings)
+
+
 
   class $.attachinary.Attachinary
     constructor: (@$input, @config) ->
       @options = @$input.data('attachinary')
-
-      if @config.files
-        @$input.data('attachinary').files = @config.files
-
       @files = @options.files
-
-      @$cors = @$input.data('cors')
-      @$autoSave = @$input.data('auto-save')
-      @$addDescription = @$input.data('add-description')
 
       @$form = @$input.closest('form')
       @$submit = @$form.find(@options.submit_selector ? 'input[type=submit]')
@@ -62,7 +59,7 @@
         dataType: 'json'
         paramName: 'file'
         headers: {"X-Requested-With": "XMLHttpRequest"}
-        dropZone: @config.dropZone || @$input.parents(".dropzone") || @$input
+        dropZone: @config.dropZone || @$input
         sequentialUploads: true
 
       if @$input.attr('accept')
@@ -88,13 +85,13 @@
 
 
       @$input.bind 'fileuploaddone', (event, data) =>
-        if (file =  @addFile(data.result))
-          if @$autoSave
-            @syncFiles(event.target)
+        @addFile(data.result)
+
 
       @$input.bind 'fileuploadstart', (event) =>
         # important! changed on every file upload
         @$input = $(event.target)
+
 
       @$input.bind 'fileuploadalways', (event) =>
         @$input.removeClass 'uploading'
@@ -114,56 +111,17 @@
         if @config.disableWith && @config.indicateProgress
           @$submit.val "[#{progress}%] #{@config.disableWith}"
 
-    syncFiles: (target) ->
-      if @$cors
-        formURL = @$input.data('cors-put-url')
-        files = @$input.parents('.attachments-box').find('.attachinary_container input').val()
-        formData = { 'signal_instance[signal_documents][]': files }
-      else
-        form = $(target).closest('form')
-        formURL = $(target).closest('form').attr('action')
-        formData = { 'signal_instance[signal_documents][]': form.serializeObject()['signal_instance[signal_documents][]'] }
-
-      $.ajax
-        method: 'PUT',
-        url: formURL,
-        data: formData,
-        success: =>
-          # Note: Should we show any visual effect to the user to let them now the file was saved
-        error: =>
-          newFile = @files.filter((file) ->
-            file.bytes != undefined
-          )
-          @removeFile(newFile[0].public_id, true) if newFile.length > 0
-          alert('File upload failed, please try again later!');
 
     addFile: (file) ->
       if !@options.accept || $.inArray(file.format, @options.accept) != -1  || $.inArray(file.resource_type, @options.accept) != -1
-        duplicatedFiles = @files.filter (f) ->
-          (f.original_filename == file.original_filename) && (f.original_filename == file.original_filename)
-
-        if @$addDescription
-          description = prompt('Add description to file name: ' + file.original_filename)
-          if description
-            file.original_filename = "#{file.original_filename} (#{description})"
-
-        if duplicatedFiles.length > 0
-          answer = confirm('Do you want to overwrite this file: ' + file.original_filename)
-          if answer is yes
-            @removeFile(duplicatedFiles[0].public_id)
-          else
-            file.original_filename = "#{file.original_filename}__dup#{Math.ceil(Math.random()*10000*10000)}"
-
         @files.push file
         @redraw()
         @checkMaximum()
         @$input.trigger 'attachinary:fileadded', [file]
-        file
       else
         alert @config.invalidFormatMessage
-        false
 
-    removeFile: (fileIdToRemove, skipSync=false) ->
+    removeFile: (fileIdToRemove) ->
       _files = []
       removedFile = null
       for file in @files
@@ -175,8 +133,6 @@
       @redraw()
       @checkMaximum()
       @$input.trigger 'attachinary:fileremoved', [removedFile]
-      if @$autoSave and !skipSync
-        @syncFiles @$input
 
     checkMaximum: ->
       if @maximumReached()
@@ -188,6 +144,8 @@
 
     maximumReached: ->
       @options.maximum && @files.length >= @options.maximum
+
+
 
     addFilesContainer: ->
       if @options.files_container_selector? and $(@options.files_container_selector).length > 0
@@ -205,7 +163,7 @@
         @$filesContainer.append @config.render(@files)
         @$filesContainer.find('[data-remove]').on 'click', (event) =>
           event.preventDefault()
-          @removeFile $(event.currentTarget).data('remove')
+          @removeFile $(event.target).data('remove')
 
         @$filesContainer.show()
       else
@@ -217,6 +175,9 @@
       $input.attr 'name', @options.field_name
       $input.val value
       $input
+
+
+
 
   # JavaScript templating by John Resig's
   $.attachinary.Templating =
@@ -245,29 +206,5 @@
            .split(c.end).join("p.push('") +
            "');}return p.join('');"
       if data then fn(data) else fn
-
-  $(document).bind "dragover", (e) ->
-    dropZone = $(".dropzone")
-    foundDropzone = undefined
-    timeout = window.dropZoneTimeout
-    unless timeout
-      dropZone.addClass "in"
-    else
-      clearTimeout timeout
-    found = false
-    node = e.target
-    loop
-      if $(node).hasClass("dropzone")
-        found = true
-        foundDropzone = $(node)
-        break
-      node = node.parentNode
-      break unless node?
-    dropZone.removeClass "in hover"
-    foundDropzone.addClass "hover"  if found
-    window.dropZoneTimeout = setTimeout(->
-      window.dropZoneTimeout = null
-      dropZone.removeClass "in hover"
-    , 100)
 
 )(jQuery)
