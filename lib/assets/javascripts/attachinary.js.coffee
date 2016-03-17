@@ -1,4 +1,5 @@
 (($) ->
+
   $.attachinary =
     index: 0
     config:
@@ -44,6 +45,7 @@
       @$cors = @$input.data('cors')
       @$autoSave = @$input.data('auto-save')
       @$addDescription = @$input.data('add-description')
+      @$formKey = @$input.data('form-key')
 
       @$form = @$input.closest('form')
       @$submit = @$form.find(@options.submit_selector ? 'input[type=submit]')
@@ -115,14 +117,15 @@
           @$submit.val "[#{progress}%] #{@config.disableWith}"
 
     syncFiles: (target) ->
+      formData = {}
       if @$cors
         formURL = @$input.data('cors-put-url')
         files = @$input.parents('.attachments-box').find('.attachinary_container input').val()
-        formData = { 'signal_instance[signal_documents][]': files }
+        formData["#{@$formKey}"] = files
       else
         form = $(target).closest('form')
         formURL = $(target).closest('form').attr('action')
-        formData = { 'signal_instance[signal_documents][]': form.serializeObject()['signal_instance[signal_documents][]'] }
+        formData["#{@$formKey}"] = form.serializeObject()["#{@$formKey}"]
 
       $.ajax
         method: 'PUT',
